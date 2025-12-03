@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>💰 Minhas Despesas</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+            min-height: 100vh;
+            padding: 20px;
+            padding-bottom: 100px;
+        }
+        .container { max-width: 500px; margin: 0 auto; }
+        h1 { font-size: 2rem; margin-bottom: 10px; text-align: center; }
+        .subtitle { text-align: center; opacity: 0.9; margin-bottom: 30px; font-size: 0.9rem; }
+        .card {
+            background: rgba(255,255,255,0.15);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 25px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        .balance {
+            text-align: center;
+            font-size: 3rem;
+            font-weight: 700;
+            margin: 20px 0;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        .meta {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255,255,255,0.3);
+        }
+        .meta-item { text-align: center; }
+        .meta-label { font-size: 0.8rem; opacity: 0.8; margin-bottom: 5px; }
+        .meta-value { font-size: 1.3rem; font-weight: 700; }
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .tab {
+            flex: 1;
+            padding: 12px;
+            background: rgba(255,255,255,0.2);
+            border: none;
+            border-radius: 12px;
+            color: #fff;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        .tab.active {
+            background: rgba(255,255,255,0.95);
+            color: #667eea;
+        }
+        .input-group { margin-bottom: 15px; }
+        .label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 12px;
+            background: rgba(255,255,255,0.9);
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            color: #333;
+            font-family: inherit;
+        }
+        textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+        .btn {
+            width: 100%;
+            padding: 15px;
+            background: rgba(255,255,255,0.95);
+            border: none;
+            border-radius: 12px;
+            color: #667eea;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        .btn:active { transform: scale(0.98); }
+        .expense-item {
+            background: rgba(255,255,255,0.15);
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .expense-info { flex: 1; }
+        .expense-merchant { font-weight: 600; margin-bottom: 5px; }
+        .expense-date { font-size: 0.85rem; opacity: 0.8; }
+        .expense-amount { font-size: 1.3rem; font-weight: 700; }
+        .delete-btn {
+            background: rgba(239, 68, 68, 0.2);
+            border: none;
+            color: #fff;
+            padding: 8px 12px;
+            border-radius: 8px;
+            margin-left: 10px;
+            cursor: pointer;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 10px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 15px 0;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4ade80, #22c55e);
+            border-radius: 10px;
+            transition: width 0.5s;
+        }
+        .progress-fill.warning { background: linear-gradient(90deg, #fbbf24, #f59e0b); }
+        .progress-fill.danger { background: linear-gradient(90deg, #ef4444, #dc2626); }
+        .empty { text-align: center; padding: 40px; opacity: 0.7; }
+        .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px; }
+        .stat-card {
+            background: rgba(255,255,255,0.1);
+            padding: 15px;
+            border-radius: 12px;
+            text-align: center;
+        }
+        .stat-label { font-size: 0.8rem; opacity: 0.8; margin-bottom: 5px; }
+        .stat-value { font-size: 1.5rem; font-weight: 700; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>💰 Minhas Despesas</h1>
+        <div class="subtitle">Controle financeiro simples</div>
+
+        <div id="app"></div>
+    </div>
+
+    <script>
+        const state = {
+            tab: 'dash',
+            expenses: JSON.parse(localStorage.getItem('expenses') || '[]'),
+            goal: parseFloat(localStorage.getItem('goal') || '20000'),
+            sms: ''
+        };
+
+        function save() {
+            localStorage.setItem('expenses', JSON.stringify(state.expenses));
+            localStorage.setItem('goal', state.goal);
+        }
+
+        function parseSMS(text) {
+            const patterns = [
+                /(?:AED|aed)\s*([\d,\.]+).*?on\s+([\d\/]+)\s+([\d:]+).*?at\s+([^,]+)/i,
+                /(?:R\$|USD|EUR)\s*([\d,\.]+).*?(\d{2}\/\d{2}\/\d{4}).*?(\d{2}:\d{2}:\d{2}).*?(?:at|em)\s+([^,\.]+)/i,
+            ];
+            for (let p of patterns) {
+                const m = text.match(p);
+                if (m) {
+                    return {
+                        amount: parseFloat(m[1].replace(',', '')),
+                        date: m[2],
+                        time: m[3],
+                        merchant: m[4].trim(),
+                        id: Date.now()
+                    };
+                }
+            }
+            return null;
+        }
+
+        function addExpense() {
+            const parsed = parseSMS(state.sms);
+            if (parsed) {
+                state.expenses.unshift(parsed);
+                save();
+                state.sms = '';
+                state.tab = 'dash';
+                alert('✅ Despesa adicionada!');
+                render();
+            } else {
+                alert('❌ Não consegui extrair os dados. Verifique o formato do SMS.');
+            }
+        }
+
+        function deleteExpense(id) {
+            if (confirm('Excluir esta despesa?')) {
+                state.expenses = state.expenses.filter(e => e.id !== id);
+                save();
+                render();
+            }
+        }
+
+        function updateGoal(value) {
+            state.goal = parseFloat(value) || 0;
+            save();
+        }
+
+        function getMonthExpenses() {
+            const now = new Date();
+            return state.expenses.filter(e => {
+                const parts = e.date.split('/');
+                const month = parseInt(parts[1]) - 1;
+                const year = parseInt(parts[2]);
+                return month === now.getMonth() && year === now.getFullYear();
+            });
+        }
+
+        function render() {
+            const monthExpenses = getMonthExpenses();
+            const total = monthExpenses.reduce((sum, e) => sum + e.amount, 0);
+            const remaining = state.goal - total;
+            const percent = (total / state.goal) * 100;
+            const avg = monthExpenses.length ? total / monthExpenses.length : 0;
+            const largest = monthExpenses.length ? Math.max(...monthExpenses.map(e => e.amount)) : 0;
+
+            let progressClass = '';
+            if (percent > 90) progressClass = 'danger';
+            else if (percent > 70) progressClass = 'warning';
+
+            const app = document.getElementById('app');
+            
+            if (state.tab === 'dash') {
+                app.innerHTML = `
+                    <div class="tabs">
+                        <button class="tab active" onclick="state.tab='dash'; render()">Dashboard</button>
+                        <button class="tab" onclick="state.tab='add'; render()">Adicionar</button>
+                        <button class="tab" onclick="state.tab='list'; render()">Histórico</button>
+                    </div>
+                    <div class="card">
+                        <div style="text-align:center; font-size:0.9rem; opacity:0.9;">Limite Mensal</div>
+                        <div class="balance">AED ${state.goal.toFixed(0)}</div>
+                        <div class="progress-bar">
+                            <div class="progress-fill ${progressClass}" style="width: ${Math.min(percent, 100)}%"></div>
+                        </div>
+                        <div style="text-align:center; font-size:0.9rem; margin-top:10px;">
+                            ${percent.toFixed(1)}% usado
+                        </div>
+                        <div class="meta">
+                            <div class="meta-item">
+                                <div class="meta-label">Gasto</div>
+                                <div class="meta-value">AED ${total.toFixed(0)}</div>
+                            </div>
+                            <div class="meta-item">
+                                <div class="meta-label">Restante</div>
+                                <div class="meta-value" style="color: ${remaining < 0 ? '#fca5a5' : '#86efac'}">
+                                    AED ${remaining.toFixed(0)}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="stats">
+                        <div class="stat-card">
+                            <div class="stat-label">Transações</div>
+                            <div class="stat-value">${monthExpenses.length}</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Média</div>
+                            <div class="stat-value">AED ${avg.toFixed(0)}</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Maior</div>
+                            <div class="stat-value">AED ${largest.toFixed(0)}</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Dias Ativos</div>
+                            <div class="stat-value">${new Set(monthExpenses.map(e => e.date)).size}</div>
+                        </div>
+                    </div>
+                `;
+            } else if (state.tab === 'add') {
+                app.innerHTML = `
+                    <div class="tabs">
+                        <button class="tab" onclick="state.tab='dash'; render()">Dashboard</button>
+                        <button class="tab active" onclick="state.tab='add'; render()">Adicionar</button>
+                        <button class="tab" onclick="state.tab='list'; render()">Histórico</button>
+                    </div>
+                    <div class="card">
+                        <div class="input-group">
+                            <label class="label">Cole o SMS do banco:</label>
+                            <textarea id="smsInput" placeholder="Cole aqui o SMS...">${state.sms}</textarea>
+                            <div style="font-size:0.8rem; opacity:0.7; margin-top:8px;">
+                                Exemplo: Your Cr.Card XXX6487 was used for AED34.65 on 03/12/2025...
+                            </div>
+                        </div>
+                        <button class="btn" onclick="state.sms=document.getElementById('smsInput').value; addExpense()">
+                            Extrair e Adicionar
+                        </button>
+                    </div>
+                    <div class="card">
+                        <div class="input-group">
+                            <label class="label">Meta Mensal (AED):</label>
+                            <input type="number" id="goalInput" value="${state.goal}" 
+                                   onchange="updateGoal(this.value); render()">
+                        </div>
+                    </div>
+                `;
+            } else {
+                app.innerHTML = `
+                    <div class="tabs">
+                        <button class="tab" onclick="state.tab='dash'; render()">Dashboard</button>
+                        <button class="tab" onclick="state.tab='add'; render()">Adicionar</button>
+                        <button class="tab active" onclick="state.tab='list'; render()">Histórico</button>
+                    </div>
+                    ${state.expenses.length === 0 ? 
+                        '<div class="card"><div class="empty">📊<br>Nenhuma despesa ainda</div></div>' :
+                        state.expenses.map(e => `
+                            <div class="expense-item">
+                                <div class="expense-info">
+                                    <div class="expense-merchant">${e.merchant}</div>
+                                    <div class="expense-date">${e.date} às ${e.time}</div>
+                                </div>
+                                <div style="display:flex; align-items:center;">
+                                    <div class="expense-amount">AED ${e.amount.toFixed(2)}</div>
+                                    <button class="delete-btn" onclick="deleteExpense(${e.id})">🗑️</button>
+                                </div>
+                            </div>
+                        `).join('')
+                    }
+                `;
+            }
+        }
+
+        render();
+    </script>
+</body>
+</html>
